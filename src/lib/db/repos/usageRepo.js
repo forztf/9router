@@ -657,6 +657,114 @@ export async function getChartData(period = "7d") {
   });
 }
 
+function maskApiKey(key) {
+  if (!key || key === "local-no-key") return "Local (No API Key)";
+  if (key.length <= 8) return "sk-***";
+  return key.slice(0, 3) + "***" + key.slice(-4);
+}
+
+export async function getApiKeyStats(period = "7d") {
+  const db = await getAdapter();
+  const { getApiKeys } = await import("./apiKeysRepo.js");
+
+  let allApiKeys = [];
+  try { allApiKeys = await getApiKeys(); } catch {}
+  const apiKeyMap = {};
+  for (const k of allApiKeys) apiKeyMap[k.key] = { name: k.name, id: k.id };
+
+  const acc = {};
+  const totals = { totalRequests: 0, totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0 };
+
+  function ensureAcc(key) {
+    if (!acc[key]) {
+      acc[key] = {
+        name: key === "local-no-key" ? "Local (No API Key)" : (apiKeyMap[key]?.name || maskApiKey(key)),
+        maskedKey: maskApiKey(key),
+        requests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
+        byProvider: {}, byModel: {},
+      };
+    }
+    return acc[key];
+  }
+
+  if (period === "24h") {
+    const cutoff = new Date(Date.now() - PERIOD_MS["24h"]).toISOString();
+    const rows = db.all(
+      `SELECT provider, model, apiKey, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
+      [cutoff]
+    );
+    for (const r of rows) {
+      const apiKeyVal = (r.apiKey && typeof r.apiKey === "string") ? r.apiKey : "local-no-key";
+      const provider = r.provider || "unknown";
+      const model = r.model || "unknown";
+      const entry = ensureAcc(apiKeyVal);
+      const vals = { requests: 1, promptTokens: r.promptTokens || 0, completionTokens: r.completionTokens || 0, cost: r.cost || 0 };
+
+      entry.requests += vals.requests;
+      entry.promptTokens += vals.promptTokens;
+      entry.completionTokens += vals.completionTokens;
+      entry.cost += vals.cost;
+
+      if (!entry.byProvider[provider]) entry.byProvider[provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
+      entry.byProvider[provider].requests += vals.requests;
+      entry.byProvider[provider].promptTokens += vals.promptTokens;
+      entry.byProvider[provider].completionTokens += vals.completionTokens;
+      entry.byProvider[provider].cost += vals.cost;
+
+      if (!entry.byModel[model]) entry.byModel[model] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
+      entry.byModel[model].requests += vals.requests;
+      entry.byModel[model].promptTokens += vals.promptTokens;
+      entry.byModel[model].completionTokens += vals.completionTokens;
+      entry.byModel[model].cost += vals.cost;
+
+      totals.totalRequests += vals.requests;
+      totals.totalPromptTokens += vals.promptTokens;
+      totals.totalCompletionTokens += vals.completionTokens;
+      totals.totalCost += vals.cost;
+    }
+  } else {
+    const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
+    const maxDays = periodDays[period] || 7;
+    const dayRows = loadDaysInRange(db, maxDays);
+
+    for (const dr of dayRows) {
+      const day = parseJson(dr.data, {});
+      for (const [akKey, ak] of Object.entries(day.byApiKey || {})) {
+        const apiKeyVal = ak.apiKey || "local-no-key";
+        const provider = ak.provider || "unknown";
+        const model = ak.rawModel || akKey.split("|")[1] || "unknown";
+        const entry = ensureAcc(apiKeyVal);
+        const vals = { requests: ak.requests || 0, promptTokens: ak.promptTokens || 0, completionTokens: ak.completionTokens || 0, cost: ak.cost || 0 };
+
+        entry.requests += vals.requests;
+        entry.promptTokens += vals.promptTokens;
+        entry.completionTokens += vals.completionTokens;
+        entry.cost += vals.cost;
+
+        if (!entry.byProvider[provider]) entry.byProvider[provider] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
+        entry.byProvider[provider].requests += vals.requests;
+        entry.byProvider[provider].promptTokens += vals.promptTokens;
+        entry.byProvider[provider].completionTokens += vals.completionTokens;
+        entry.byProvider[provider].cost += vals.cost;
+
+        if (!entry.byModel[model]) entry.byModel[model] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
+        entry.byModel[model].requests += vals.requests;
+        entry.byModel[model].promptTokens += vals.promptTokens;
+        entry.byModel[model].completionTokens += vals.completionTokens;
+        entry.byModel[model].cost += vals.cost;
+
+        totals.totalRequests += vals.requests;
+        totals.totalPromptTokens += vals.promptTokens;
+        totals.totalCompletionTokens += vals.completionTokens;
+        totals.totalCost += vals.cost;
+      }
+    }
+  }
+
+  const items = Object.values(acc).sort((a, b) => b.cost - a.cost);
+  return { items, ...totals };
+}
+
 function formatLogDate(date = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
