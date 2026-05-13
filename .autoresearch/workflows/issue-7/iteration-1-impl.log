@@ -1,0 +1,14 @@
+完成。修改汇总：
+
+**修改文件：** 32 个语言文件（`public/i18n/literals/*.json`）
+
+| 类别 | 文件数 | 每文件新增条目 |
+|------|--------|--------------|
+| zh-CN | 1 | 6 条（已有 7 条） |
+| 其余 31 个语言 | 31 | 13 条 |
+| **合计** | **32** | **409 条翻译** |
+
+**新增的 13 个英文 key：**
+- `API Key Analytics`, `API Key Name`, `By Model`, `By Provider`, `Est. Cost`, `Export CSV`, `Input Tokens`, `No API key usage data yet`, `Output Tokens`, `Requests`, `Total Input Tokens`, `Total Output Tokens`, `Total Requests`
+
+其中 zh-CN 已有 `API Key Name`、`Est. Cost`、`Requests`、`Total Requests`、`Input Tokens`、`Output Tokens`、`Total Input Tokens` 这 7 个 key，所以只新增了 6 个缺失的。所有文件通过 JSON 格式验证和字母排序验证。

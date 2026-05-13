@@ -165,32 +165,32 @@ function ApiKeyTable({ keys, summary, sortField, sortOrder, onSort, expandedKey,
           </thead>
           <tbody className="divide-y divide-border">
             {keys.map((key, i) => (
-              <Fragment key={key.apiKey || i}>
+              <Fragment key={key.originalKey || i}>
                 <tr className="hover:bg-bg-subtle/20 transition-colors">
                   <td className="px-6 py-3">
                     <button
                       type="button"
-                      onClick={() => onToggleExpand(key.apiKey || i)}
+                      onClick={() => onToggleExpand(key.originalKey || i)}
                       className="p-1 hover:bg-bg-subtle/50 rounded transition-colors"
-                      title={expandedKey === (key.apiKey || i) ? translate("Collapse") : translate("Expand")}
+                      title={expandedKey === (key.originalKey || i) ? translate("Collapse") : translate("Expand")}
                     >
                       <span className={cn(
                         "material-symbols-outlined text-[20px] text-text-muted transition-transform duration-200",
-                        expandedKey === (key.apiKey || i) ? "rotate-90" : ""
+                        expandedKey === (key.originalKey || i) ? "rotate-90" : ""
                       )}>
                         chevron_right
                       </span>
                     </button>
                   </td>
                   <td className="px-6 py-3 font-medium">
-                    {key.name || `${key.apiKey?.slice(0, 8)}...`}
+                    {key.name}
                   </td>
                   <td className="px-6 py-3 text-right">{fmtNum(key.requests)}</td>
                   <td className="px-6 py-3 text-right text-text-muted">{fmtTokens(key.promptTokens)}</td>
                   <td className="px-6 py-3 text-right text-text-muted">{fmtTokens(key.completionTokens)}</td>
                   <td className="px-6 py-3 text-right font-medium text-warning">{fmtCost(key.cost)}</td>
                 </tr>
-                {expandedKey === (key.apiKey || i) && <ExpandedRow item={key} />}
+                {expandedKey === (key.originalKey || i) && <ExpandedRow item={key} />}
               </Fragment>
             ))}
             {keys.length > 0 && summary && (
@@ -294,7 +294,7 @@ function ApiKeyAnalyticsContent() {
       translate("Est. Cost"),
     ];
     const rows = sortedKeys.map((key) => [
-      key.name || `${key.apiKey?.slice(0, 8)}...`,
+      key.name,
       key.requests,
       key.promptTokens,
       key.completionTokens,

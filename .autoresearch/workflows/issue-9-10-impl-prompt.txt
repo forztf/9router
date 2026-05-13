@@ -1,0 +1,72 @@
+实现 Issue #9 + #10: 为 API Key Analytics 页面添加展开面板和 CSV 导出
+
+项目路径: /c/code/AICodingTool/myproxy/9router
+项目语言: JavaScript/React (Next.js App Router)
+目标文件: src/app/(dashboard)/dashboard/apikey-analytics/page.js
+
+## Issue #9: 展开面板（手风琴）
+
+需求：
+1. 表格行点击展开手风琴面板，显示该 key 按 Provider/Model 的用量拆分
+2. 详情面板显示该 key 按 Provider 的用量拆分表格（列头走 i18n）
+3. 详情面板显示该 key 按 Model 的用量拆分表格（前 10 个 model）
+4. 展开时收起其他已展开的行（手风琴模式）
+
+已知信息：
+- 后端 /api/usage/apikey-stats 返回的数据结构是 { items: [...], totalRequests, totalPromptTokens, totalCompletionTokens, totalCost }
+- 每个 item 有 byProvider: { "providerName": { requests, promptTokens, completionTokens, cost } } 和 byModel: { "modelName": { requests, promptTokens, completionTokens, cost } }
+- 现有 page.js 有 bug：data?.keys 应该改成 data?.items
+- 参考 src/app/(dashboard)/dashboard/usage/components/RequestDetailsTab.js 的手风琴实现
+
+## Issue #10: CSV 导出
+
+需求：
+1. 页面右上角 "Export CSV" 按钮（i18n key: "Export CSV"）
+2. 点击后下载 CSV 文件，文件名格式 apikey-usage-YYYY-MM-DD.csv
+3. CSV 包含所有 API Key 数据（含汇总行），不受分页影响
+4. CSV 列：API Key Name, Requests, Input Tokens, Output Tokens, Est. Cost
+5. 列头使用当前语言（从 runtime.js 的 translate() 获取）
+6. 当前时间段有数据时才可导出，无数据时按钮 disabled
+7. CSV 生成使用浏览器端 Blob + URL.createObjectURL
+
+## 已知 bug 需要修复
+
+page.js 第 163 行 data?.keys 应改为 data?.items
+page.js 第 186-191 行 data?.summary 应改为 data（因为返回结构是 items + totals，没有 summary 包装）
+
+## i18n 资源
+
+已有 zh-CN 资源（需用 translate() 翻译英文 key）：
+- "API Key Name", "Requests", "Input Tokens", "Output Tokens", "Est. Cost"
+- "Export CSV", "Expand", "Collapse"
+- "Usage Breakdown", "By Provider", "By Model"
+- "Top Providers", "Top Models"
+- "No API key usage data for this period."
+- "Total Requests", "Estimated, not actual billing"
+
+i18n 使用方式（从 runtime.js 的 translate() 函数）：
+```javascript
+import { translate } from "@/i18n/runtime";
+// 在 JSX 中使用：<span>{translate("Export CSV")}</span>
+// 英文 key 会返回英文原文，i18n 系统会自动翻译
+```
+
+## 实现步骤
+
+1. 修复 data?.keys → data?.items 和 data?.summary → 直接用 data
+2. 添加展开/收起状态管理（useState）
+3. 在表格每行添加展开箭头图标和 onClick 处理
+4. 展开行内渲染 byProvider 和 byModel 表格（i18n 列头）
+5. 实现手风琴：展开新行时关闭旧行
+6. 添加右上角 Export CSV 按钮（使用 translate() 获取 i18n 列头）
+7. 实现 CSV 下载逻辑（Blob + URL.createObjectURL）
+8. 导出时无数据按钮 disabled
+
+## 验收标准
+
+- [ ] Typecheck/lint passes (npm run build)
+- [ ] 表格行点击展开显示 Provider/Model 明细
+- [ ] 手风琴模式：展开新行关闭旧行
+- [ ] Export CSV 按钮在右上角
+- [ ] CSV 下载正确（包含所有行，不受分页影响）
+- [ ] 无数据时 Export CSV 按钮 disabled

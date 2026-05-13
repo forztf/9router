@@ -1,0 +1,52 @@
+{
+  "issueNumber": 6,
+  "subtasks": [
+    {
+      "id": "T-001",
+      "title": "在 usageRepo 中新增 getApiKeyStats 数据查询函数",
+      "description": "在 usageRepo.js 中新增 getApiKeyStats(period) 函数，从 usageDaily 的 byApiKey 聚合数据中按 apiKey 维度汇总统计。逻辑：1) 调用 loadDaysInRange 获取指定 period 的日数据；2) 遍历每条 byApiKey 条目，用 | split 取第一段作为 apiKey 标识进行分组；3) 每个 apiKey 下汇总 requests/promptTokens/completionTokens/cost；4) 每个 apiKey 下保留 byProvider 和 byModel 的二级拆分；5) 调用 apiKeysRepo.getApiKeys() 获取 key→name 映射；6) 对 apiKey 值做脱敏处理（保留前缀 sk- 和后4位，中间用 *** 替代，local-no-key 保持原样）；7) 计算 totalRequests/totalPromptTokens/totalCompletionTokens/totalCost 汇总；8) 无数据时返回空数组 items 和零值汇总。同时在 db/index.js 和 usageDb.js shim 中导出新函数。",
+      "acceptanceCriteria": [
+        "getApiKeyStats(period) 函数存在于 usageRepo.js 中",
+        "从 usageDaily 的 byApiKey 中正确提取并按 apiKey 分组汇总",
+        "每个 apiKey 的 byProvider 和 byModel 二级拆分数据完整",
+        "apiKey 值做了脱敏处理（sk-***xxxx 格式，local-no-key 保持原样）",
+        "返回结构包含 items 数组和 totalRequests/totalPromptTokens/totalCompletionTokens/totalCost 汇总",
+        "无数据时 items 为空数组，汇总值为 0",
+        "新函数已从 db/index.js 和 usageDb.js shim 中导出",
+        "不修改现有表结构、schema 或 migration"
+      ],
+      "priority": 1,
+      "type": "code",
+      "passes": false
+    },
+    {
+      "id": "T-002",
+      "title": "新增 GET /api/usage/apikey-stats 路由",
+      "description": "在 src/app/api/usage/apikey-stats/ 目录下创建 route.js，实现 GET handler。参考现有 /api/usage/stats 路由的模式：1) 从 searchParams 获取 period 参数，默认 7d；2) period 参数校验只接受 24h/7d/30d/60d，非法值返回 400；3) 调用 getApiKeyStats(period) 获取数据；4) 返回 JSON 响应；5) 错误处理返回 500 且不泄露敏感信息。",
+      "acceptanceCriteria": [
+        "GET /api/usage/apikey-stats 路由可访问",
+        "period 参数默认值为 7d",
+        "period 参数只接受 24h/7d/30d/60d，非法值返回 400 错误",
+        "成功时返回 JSON 包含 items 数组和汇总数据",
+        "无数据时返回 items: [] 而非 404",
+        "服务端错误返回 500 和通用错误信息（不泄露敏感数据）",
+        "export const dynamic = 'force-dynamic' 配置正确"
+      ],
+      "priority": 2,
+      "type": "code",
+      "passes": false
+    },
+    {
+      "id": "T-003",
+      "title": "Typecheck/lint 验证通过",
+      "description": "运行项目 typecheck 和 lint 命令，确保新增代码不引入类型错误和 lint 错误。如有问题则修复至通过。",
+      "acceptanceCriteria": [
+        "项目 typecheck 通过（无新增类型错误）",
+        "项目 lint 通过（无新增 lint 错误）"
+      ],
+      "priority": 3,
+      "type": "code",
+      "passes": false
+    }
+  ]
+}

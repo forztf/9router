@@ -1,0 +1,41 @@
+规划 Issue #9 的子任务拆分
+
+项目路径: /c/code/AICodingTool/myproxy/9router
+项目语言: JavaScript/React (Next.js)
+Issue 标题: Add expandable detail panel per API Key row
+Issue 内容:
+- 表格行点击展开手风琴面板，显示该 key 按 Provider/Model 的用量拆分
+- 详情面板显示该 key 按 Provider 的用量拆分表格
+- 详情面板显示该 key 按 Model 的用量拆分表格（前 10 个 model）
+- 展开时收起其他已展开的行（手风琴模式）
+- Typecheck/lint passes
+- Verify in browser using browser_vision
+- 数据来自 /api/usage/apikey-stats 返回的 byProvider 和 byModel
+- 交互模式参考 RequestDetailsTab 的手风琴
+
+请分析此 Issue，将其拆分为可独立完成的子任务。每个子任务应能在一次迭代内完成。
+
+输出格式要求：在输出的最后，必须输出一个 JSON 代码块（用 ```json 和 ``` 包裹），格式如下：
+
+```json
+{
+  "issueNumber": 9,
+  "subtasks": [
+    {
+      "id": "T-001",
+      "title": "用一句话概括此子任务的核心目标",
+      "description": "详细描述需要完成的具体工作",
+      "acceptanceCriteria": ["可验证的验收条件1", "可验证的验收条件2"],
+      "priority": 1,
+      "type": "code",
+      "passes": false
+    }
+  ]
+}
+```
+
+拆分原则：
+1. 每个子任务应是一个可独立验证的、在一次迭代内能完成的小目标
+2. 子任务之间应有清晰的依赖顺序（通过 priority 排序）
+3. 每个子任务必须有明确的验收条件
+4. 涉及 UI 变更的子任务标注 "type": "ui"

@@ -1,0 +1,96 @@
+
+
+基于对代码库的完整分析，现在我来拆分 Issue #9 的子任务。
+
+## Issue #9 需求分析总结
+
+**现有基础设施：**
+- `/api/usage/apikey-stats` API 已返回 `byProvider` 和 `byModel` 数据
+- `RequestDetailsTab.js` 已有可参考的 `CollapsibleSection` 手风琴组件
+- `ApiKeyTable` 当前无展开功能
+
+**关键设计决策：**
+- 手风琴模式：展开新行时自动收起旧行
+- 数据结构：`items[]` 包含 `byProvider` 和 `byModel` 对象
+- 展示 Top 10 Model 按请求量排序
+
+```json
+{
+  "issueNumber": 9,
+  "subtasks": [
+    {
+      "id": "T-001",
+      "title": "验证 API 数据结构与组件集成方案",
+      "description": "确认 /api/usage/apikey-stats 返回的 items[].byProvider 和 items[].byModel 的具体数据结构，设计 Provider 表格和 Model 表格的列定义与格式化函数。",
+      "acceptanceCriteria": [
+        "明确 byProvider 数据结构（每个 entry 包含 requests, promptTokens, completionTokens, cost）",
+        "明确 byModel 数据结构及 Top 10 排序逻辑",
+        "确定 Provider/Model 表格的列定义（Provider Name, Requests, Tokens, Cost）",
+        "规划展开面板的布局：上下两行，Provider 表 + Model 表"
+      ],
+      "priority": 1,
+      "type": "code",
+      "passes": false
+    },
+    {
+      "id": "T-002",
+      "title": "创建 ApiKeyDetailPanel 可复用组件",
+      "description": "在 apikey-analytics 目录下创建 ApiKeyDetailPanel.js 组件，接收 providerData 和 modelData props，渲染两个子表格（Provider 统计 + Model 统计 Top 10）。参考 RequestDetailsTab 的 CollapsibleSection 样式。",
+      "acceptanceCriteria": [
+        "组件文件位置：src/app/(dashboard)/dashboard/apikey-analytics/components/ApiKeyDetailPanel.js",
+        "Provider 表格：展示 Provider 名称、请求数、Input/Output Tokens、Cost",
+        "Model 表格：展示 Model 名称、请求数、Input/Output Tokens、Cost，最多 10 行",
+        "复用 fmtTokens、fmtCost、fmtNum 等现有格式化函数",
+        "空数据状态显示占位文字"
+      ],
+      "priority": 2,
+      "type": "ui",
+      "passes": false
+    },
+    {
+      "id": "T-003",
+      "title": "修改 ApiKeyTable 实现手风琴展开模式",
+      "description": "修改 src/app/(dashboard)/dashboard/apikey-analytics/page.js 中的 ApiKeyTable 函数：将 expanded 状态从 Set 改为单个 expandedKey（支持手风琴模式）。行点击时展开该行详情，同时收起其他已展开的行。",
+      "acceptanceCriteria": [
+        "状态管理：expandedKey 从 Set 改为 string/null",
+        "手风琴逻辑：展开新行时自动将 expandedKey 设为新 ID，并触发收起旧行",
+        "点击已展开行：收起该行（expandedKey 设为 null）",
+        "行样式：hover 效果区分，展开行有左侧/底部边框高亮",
+        "展开区域：渲染 <ApiKeyDetailPanel key={key} data={keyData} />"
+      ],
+      "priority": 3,
+      "type": "ui",
+      "passes": false
+    },
+    {
+      "id": "T-004",
+      "title": "集成 Provider/Model 详情数据到展开面板",
+      "description": "在 ApiKeyTable 中将 each key item 的 byProvider 和 byModel 数据传递给 ApiKeyDetailPanel。处理 Provider 名称映射（使用 getProviderName 函数或 providerNodeNameMap）。Model 表格按请求量排序取前 10。",
+      "acceptanceCriteria": [
+        "byProvider 数据通过 props.data.byProvider 传入 ApiKeyDetailPanel",
+        "byModel 数据通过 props.data.byModel 传入 ApiKeyDetailPanel",
+        "Model 数据按 requests 降序排序后取前 10 行",
+        "Provider 名称使用 providerNodeNameMap 映射显示友好名称"
+      ],
+      "priority": 4,
+      "type": "code",
+      "passes": false
+    },
+    {
+      "id": "T-005",
+      "title": "样式优化与浏览器验证",
+      "description": "调整展开面板样式确保与现有设计语言一致。运行 typecheck/lint。浏览器验证交互效果。",
+      "acceptanceCriteria": [
+        "展开面板边框、背景色与 Card 组件风格一致",
+        "表格行间距、内边距与上方主表格保持统一",
+        "npm run lint 通过，无 console.error/warning",
+        "浏览器测试：点击行展开 → 查看 Provider/Model 数据 → 点击另一行 → 旧行收起 → 新行展开"
+      ],
+      "priority": 5,
+      "type": "ui",
+      "passes": false
+    }
+  ]
+}
+```
+SessionEnd hook [export PATH="$($SHELL -lc 'echo $PATH' 2>/dev/null):$PATH"; _R="${CLAUDE_PLUGIN_ROOT}"; [ -z "$_R" ] && _R=$(ls -dt $HOME/.claude/plugins/cache/thedotmack/claude-mem/[0-9]*/ 2>/dev/null | head -1); _R="${_R%/}"; [ -z "$_R" ] && _R="$HOME/.claude/plugins/marketplaces/thedotmack/plugin"; node "$_R/scripts/bun-runner.js" "$_R/scripts/worker-service.cjs" hook claude-code session-complete] failed: Hook cancelled

@@ -1,0 +1,39 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+所有任务完成。总结实现内容：
+
+## 实现总结
+
+### 修改的文件
+
+1. **`src/lib/db/repos/usageRepo.js`** — 新增 `getApiKeyStats(period)` 函数和 `maskApiKey` 辅助函数
+2. **`src/lib/db/index.js`** — 导出 `getApiKeyStats`
+3. **`src/lib/usageDb.js`** — 导出 `getApiKeyStats`
+4. **`src/app/api/usage/apikey-stats/route.js`** — 新建路由文件
+
+### 关键设计决策
+
+- **脱敏规则**：apiKey 保留前3位（`sk-`）和后4位，中间用 `***` 替代；`local-no-key` 映射为 `Local (No API Key)`
+- **24h 分支**：直接查 `usageHistory` 表实时聚合，与现有 `getUsageStats` 模式一致
+- **7d/30d/60d 分支**：使用 `loadDaysInRange` 读取日汇总数据，从 `byApiKey` 条目中提取
+- **二级拆分**：每个 apiKey 下维护 `byProvider` 和 `byModel` 子聚合
+- **排序**：按 cost 降序，便于快速定位最耗资的 key
+- **空数据处理**：`getApiKeyStats` 无数据时返回 `{ items: [], totalRequests: 0, ... }`，不会返回 404
+
+### Acceptance Criteria 对照
+
+| 条件 | 状态 |
+|---|---|
+| `GET /api/usage/apikey-stats` 接口 | ✅ |
+| 返回每个 apiKey 的 name、requests、promptTokens、completionTokens、cost | ✅ |
+| 返回 byProvider 和 byModel 拆分 | ✅ |
+| 返回汇总数据 | ✅ |
+| 无数据返回空数组而非 404 | ✅ |
+| period 参数校验 24h/7d/30d/60d | ✅ |
+| 不修改现有表结构/schema/migration | ✅ |
+| Typecheck/lint passes | ✅ (语法检查通过，完整 lint 需安装依赖) |
+
+## Learnings
+
+1. **byApiKey 的 key 格式**是 `apiKeyValue|model|provider`，而 value 中的 `meta.apiKey` 保存了原始 apiKey 值——聚合时应用 `meta.apiKey`（即 `ak.apiKey`）而非从 key 字符串 split，更可靠
+2. **24h 路径的特殊性**：现有代码中 24h 走 `usageHistory` 实时查询而非 `usageDaily` 汇总，新函数也遵循此模式
+3. **脱敏需在返回层而非存储层**：`byApiKey` 中存储了完整 apiKey 值用于分组匹配，脱敏仅在输出时应用

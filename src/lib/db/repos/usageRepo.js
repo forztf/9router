@@ -32,13 +32,20 @@ function getLocalDateKey(timestamp) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function addToCounter(target, key, values) {
+function addToCounter(target, key, values, metaOnly) {
   if (!target[key]) target[key] = { requests: 0, promptTokens: 0, completionTokens: 0, cost: 0 };
   target[key].requests += values.requests || 1;
   target[key].promptTokens += values.promptTokens || 0;
   target[key].completionTokens += values.completionTokens || 0;
   target[key].cost += values.cost || 0;
-  if (values.meta) Object.assign(target[key], values.meta);
+  if (values.meta && !metaOnly) Object.assign(target[key], values.meta);
+  else if (values.meta && metaOnly) {
+    // Only store metadata fields that won't conflict with aggregation
+    // (apiKey, rawModel, provider) — do NOT use Object.assign which corrupts existing data
+    if (values.meta.apiKey !== undefined) target[key].apiKey = values.meta.apiKey;
+    if (values.meta.rawModel) target[key].rawModel = values.meta.rawModel;
+    if (values.meta.provider) target[key].provider = values.meta.provider;
+  }
 }
 
 function aggregateEntryToDay(day, entry) {
@@ -69,7 +76,7 @@ function aggregateEntryToDay(day, entry) {
 
   const apiKeyVal = entry.apiKey && typeof entry.apiKey === "string" ? entry.apiKey : "local-no-key";
   const akModelKey = `${apiKeyVal}|${entry.model}|${entry.provider || "unknown"}`;
-  addToCounter(day.byApiKey, akModelKey, { ...vals, meta: { rawModel: entry.model, provider: entry.provider, apiKey: entry.apiKey || null } });
+  addToCounter(day.byApiKey, akModelKey, { ...vals, meta: { rawModel: entry.model, provider: entry.provider, apiKey: entry.apiKey || null } }, true);
 
   const endpoint = entry.endpoint || "Unknown";
   const epKey = `${endpoint}|${entry.model}|${entry.provider || "unknown"}`;
@@ -660,7 +667,9 @@ export async function getChartData(period = "7d") {
 function maskApiKey(key) {
   if (!key || key === "local-no-key") return "Local (No API Key)";
   if (key.length <= 8) return "sk-***";
-  return key.slice(0, 3) + "***" + key.slice(-4);
+  // Include key length in prefix to distinguish different apiKey values
+  const lenLabel = key.length >= 60 ? "sk-L" : (key.length >= 40 ? "sk-M" : "sk-");
+  return lenLabel + "***" + key.slice(-4);
 }
 
 export async function getApiKeyStats(period = "7d") {
@@ -672,22 +681,40 @@ export async function getApiKeyStats(period = "7d") {
   const apiKeyMap = {};
   for (const k of allApiKeys) apiKeyMap[k.key] = { name: k.name, id: k.id };
 
+  // Build lookup by prefix (first 8 chars) to handle same key with different lengths/formats
+  const apiKeyByPrefix = {};
+  for (const k of allApiKeys) {
+    const prefix = k.key.slice(0, 8);
+    apiKeyByPrefix[prefix] = { name: k.name, id: k.id, key: k.key };
+  }
+
   const acc = {};
   const totals = { totalRequests: 0, totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0 };
 
-  function ensureAcc(key) {
-    if (!acc[key]) {
-      acc[key] = {
-        name: key === "local-no-key" ? "Local (No API Key)" : (apiKeyMap[key]?.name || maskApiKey(key)),
-        maskedKey: maskApiKey(key),
+  // Normalize apiKey to first 8 chars for stable aggregation across different key lengths/formats
+  function normalizeKey(apiKey) {
+    if (!apiKey || apiKey === "local-no-key") return apiKey;
+    return apiKey.slice(0, 8);
+  }
+
+  function ensureAcc(normalizedKey, originalKey) {
+    if (!acc[normalizedKey]) {
+      // Look up by prefix first, then by full key for legacy keys
+      const keyInfo = apiKeyByPrefix[normalizedKey] || apiKeyMap[originalKey];
+      const keyName = keyInfo?.name || (normalizedKey === "local-no-key" ? "Local (No API Key)" : maskApiKey(originalKey));
+      const fullMaskedKey = maskApiKey(originalKey);
+      acc[normalizedKey] = {
+        name: keyName,
+        originalKey: originalKey,
+        maskedKey: fullMaskedKey,
         requests: 0, promptTokens: 0, completionTokens: 0, cost: 0,
         byProvider: {}, byModel: {},
       };
     }
-    return acc[key];
+    return acc[normalizedKey];
   }
 
-  if (period === "24h") {
+if (period === "24h") {
     const cutoff = new Date(Date.now() - PERIOD_MS["24h"]).toISOString();
     const rows = db.all(
       `SELECT provider, model, apiKey, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
@@ -697,7 +724,7 @@ export async function getApiKeyStats(period = "7d") {
       const apiKeyVal = (r.apiKey && typeof r.apiKey === "string") ? r.apiKey : "local-no-key";
       const provider = r.provider || "unknown";
       const model = r.model || "unknown";
-      const entry = ensureAcc(apiKeyVal);
+      const entry = ensureAcc(normalizeKey(apiKeyVal), apiKeyVal);
       const vals = { requests: 1, promptTokens: r.promptTokens || 0, completionTokens: r.completionTokens || 0, cost: r.cost || 0 };
 
       entry.requests += vals.requests;
@@ -733,7 +760,7 @@ export async function getApiKeyStats(period = "7d") {
         const apiKeyVal = ak.apiKey || "local-no-key";
         const provider = ak.provider || "unknown";
         const model = ak.rawModel || akKey.split("|")[1] || "unknown";
-        const entry = ensureAcc(apiKeyVal);
+        const entry = ensureAcc(normalizeKey(apiKeyVal), apiKeyVal);
         const vals = { requests: ak.requests || 0, promptTokens: ak.promptTokens || 0, completionTokens: ak.completionTokens || 0, cost: ak.cost || 0 };
 
         entry.requests += vals.requests;

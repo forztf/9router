@@ -1,0 +1,125 @@
+规划 Issue #6 的子任务拆分
+
+项目路径: C:\code\AICodingTool\myproxy\9router
+项目语言: Node (Next.js 16 + React 19)
+Issue 标题: Add API key stats backend endpoint
+Issue 内容: 
+## Description
+新增 `GET /api/usage/apikey-stats` 接口，从 usageDaily 的 byApiKey 聚合数据中提取按 API Key 维度的统计，关联 apiKeys 表获取 name。
+
+不修改现有表结构、schema 或 migration。
+
+## Acceptance Criteria
+- [ ] 新增 `GET /api/usage/apikey-stats` 接口，接受 `period` 参数
+- [ ] 返回格式包含：每个 apiKey 的 name、requests、promptTokens、completionTokens、cost
+- [ ] 返回格式包含：每个 apiKey 的 byProvider 和 byModel 拆分
+- [ ] 返回汇总数据：totalRequests、totalPromptTokens、totalCompletionTokens、totalCost
+- [ ] 无数据时返回空数组而非 404
+- [ ] period 参数校验：只接受 24h/7d/30d/60d
+- [ ] 不修改现有表结构、schema、migration
+- [ ] Typecheck/lint passes
+
+## Technical Notes
+- `usageRepo.js` 的 `aggregateEntryToDay()` 已在做 `byApiKey` 聚合，key 格式为 `apiKeyValue|model|provider`
+- `usageDaily` 表存储每日聚合 JSON，`data.byApiKey` 已包含数据
+- 新增 API 从 `byApiKey` 中提取，按 apiKey 分组汇总，解析时用 `|` split 取第一段作为 apiKey 标识
+- apiKey 名称通过 `apiKeysRepo.getApiKeys()` 获取映射（只读操作）
+- `apiKey` 字段值可能是实际 key 值或 "local-no-key"，需做脱敏处理
+
+请分析此 Issue，将其拆分为可独立完成的子任务。每个子任务应能在一次迭代内完成。
+
+输出格式要求：在输出的最后，必须输出一个 JSON 代码块（用 ```json 和 ``` 包裹），格式如下：
+
+```json
+{
+  "issueNumber": 6,
+  "subtasks": [
+    {
+      "id": "T-001",
+      "title": "用一句话概括此子任务的核心目标",
+      "description": "详细描述需要完成的具体工作",
+      "acceptanceCriteria": ["可验证的验收条件1", "可验证的验收条件2"],
+      "priority": 1,
+      "type": "code",
+      "passes": false
+    }
+  ]
+}
+```
+
+拆分原则：
+1. 每个子任务应是一个可独立验证的、在一次迭代内能完成的小目标
+2. 子任务之间应有清晰的依赖顺序（通过 priority 排序）
+3. 每个子任务必须有明确的验收条件
+4. 简单 Issue 可只拆 1-2 个子任务，复杂 Issue 建议 3-5 个
+5. 涉及 UI 变更的子任务标注 "type": "ui"
+
+---
+
+# Program - 实现规则与约束
+
+本文档定义 Agent 在实现 Issues 时必须遵循的规则和约束。
+
+## 核心目标
+
+实现 GitHub Issues 中的功能需求或 Bug 修复，确保代码质量和测试覆盖。
+
+## 权限边界
+
+### Agent 可以做的事情
+- 修改源代码目录下的文件
+- 创建新的测试文件
+- 修改现有测试文件
+- 运行测试命令
+- 运行 lint 命令
+
+### Agent 不可以做的事情
+- 修改依赖管理文件（除非 Issue 明确要求）
+- 修改 .github/ 目录下的任何文件
+- 修改 Dockerfile 或 docker-compose.yml
+- 修改 CI/CD 配置文件
+- 删除任何现有文件
+- 推送到远程仓库
+- 关闭 GitHub Issue
+- 创建 GitHub PR
+
+## 代码规范
+
+TypeScript/JavaScript 代码规范：
+1. 使用 ESLint + Prettier
+2. 严格模式
+3. 使用 TypeScript 优先
+
+前端代码规范 (React)：
+1. 组件单一职责，一个文件一个组件
+2. Props 使用 TypeScript interface 定义，避免 any
+3. 使用函数式组件和 Hooks
+
+## 质量检查
+
+- 代码可以编译/类型检查通过
+- Lint 无新增错误
+- 相关测试通过
+
+## 安全约束
+- 无 SQL 注入风险
+- 输入验证完整
+- 错误信息不泄露敏感数据
+
+## 简洁优先
+用最少的代码解决问题。不做任何推测性设计。
+
+## 精准改动
+只改你必须改的。匹配现有风格。
+
+---
+
+# Codex Agent
+
+你是一个高效的软件工程师 Agent，擅长快速实现和修复代码。
+
+作为规划者：
+- 分析 Issue 的核心诉求
+- 识别涉及的代码模块和依赖
+- 拆分为可独立完成的子任务
+- 每个子任务有明确的验收条件
