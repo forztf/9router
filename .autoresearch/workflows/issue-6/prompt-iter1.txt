@@ -1,0 +1,101 @@
+实现 Issue #6
+
+项目路径: C:\code\AICodingTool\myproxy\9router
+项目语言: Node (Next.js 16 + React 19 + Tailwind CSS 4 + SQLite)
+Issue 标题: Add API key stats backend endpoint
+Issue 内容: 
+## Description
+新增 `GET /api/usage/apikey-stats` 接口，从 usageDaily 的 byApiKey 聚合数据中提取按 API Key 维度的统计，关联 apiKeys 表获取 name。
+
+不修改现有表结构、schema 或 migration。
+
+## Acceptance Criteria
+- [ ] 新增 `GET /api/usage/apikey-stats` 接口，接受 `period` 参数
+- [ ] 返回格式包含：每个 apiKey 的 name、requests、promptTokens、completionTokens、cost
+- [ ] 返回格式包含：每个 apiKey 的 byProvider 和 byModel 拆分
+- [ ] 返回汇总数据：totalRequests、totalPromptTokens、totalCompletionTokens、totalCost
+- [ ] 无数据时返回空数组而非 404
+- [ ] period 参数校验：只接受 24h/7d/30d/60d
+- [ ] 不修改现有表结构、schema、migration
+- [ ] Typecheck/lint passes
+
+迭代次数: 1
+
+## 当前子任务
+
+### T-001: 在 usageRepo 中新增 getApiKeyStats 数据查询函数
+在 usageRepo.js 中新增 getApiKeyStats(period) 函数，从 usageDaily 的 byApiKey 聚合数据中按 apiKey 维度汇总统计。
+
+关键实现要点（基于代码分析）：
+1. 调用 loadDaysInRange(adapter, maxDays) 获取指定 period 的日数据
+2. 遍历每条日数据的 data.byApiKey 条目，key 格式为 `apiKeyValue|model|provider`
+3. 用 `|` split 取第一段作为 apiKey 标识进行分组
+4. 每个 apiKey 下汇总 requests/promptTokens/completionTokens/cost
+5. 每个 apiKey 下保留 byProvider 和 byModel 的二级拆分
+6. 调用 apiKeysRepo.getApiKeys() 获取 key→name 映射（已有 apiKeyMap 模式可参考）
+7. 对 apiKey 值做脱敏处理（保留前缀 sk- 和后4位，中间用 *** 替代，local-no-key 映射为 'Local (No API Key)'）
+8. 计算 totalRequests/totalPromptTokens/totalCompletionTokens/totalCost 汇总
+9. 无数据时返回空数组 items 和零值汇总
+10. 在 db/index.js 和 usageDb.js shim 中导出新函数
+
+### T-002: 新增 GET /api/usage/apikey-stats 路由
+在 src/app/api/usage/apikey-stats/ 目录下创建 route.js，实现 GET handler。
+
+参考现有 /api/usage/stats 路由的模式：
+1. 从 searchParams 获取 period 参数，默认 7d
+2. period 参数校验只接受 24h/7d/30d/60d，非法值返回 400
+3. 调用 getApiKeyStats(period) 获取数据
+4. 返回 JSON 响应
+5. 错误处理返回 500 且不泄露敏感信息
+6. export const dynamic = 'force-dynamic'
+
+### T-003: Typecheck/lint 验证通过
+运行 npx tsc --noEmit 和 npm run lint，确保新增代码不引入错误。如有问题则修复。
+
+请按以下步骤执行：
+1. 制定计划：分析需求，拆解为具体任务
+2. 逐步实现：按任务清单逐步实现
+3. 运行 typecheck 和 lint 验证
+4. 总结经验：输出 ## Learnings 部分
+
+---
+
+# Program - 实现规则与约束
+
+## 权限边界
+- 可以修改源代码、创建新文件
+- 不可以修改依赖管理文件、.github/、Dockerfile、CI/CD 配置
+- 不可以推送到远程仓库、关闭 Issue、创建 PR
+
+## 代码规范
+TypeScript/JavaScript：ESLint + Prettier，严格模式，TypeScript 优先
+React：函数式组件 + Hooks，Props 使用 TypeScript interface
+
+## 简洁优先
+用最少的代码解决问题。不做任何推测性设计。
+
+## 精准改动
+只改你必须改的。匹配现有风格。
+
+## 安全约束
+- 无 SQL 注入风险
+- 输入验证完整
+- 错误信息不泄露敏感数据
+- apiKey 值必须脱敏
+
+## 提交前自检
+- 代码可以编译/类型检查通过
+- Lint 无新增错误
+- 错误处理完整
+
+---
+
+# Codex Agent
+
+你是一个高效的软件工程师 Agent，擅长快速实现和修复代码。
+
+## 工作流程
+1. 理解需求
+2. 定位相关代码文件
+3. 实现代码
+4. 质量自检

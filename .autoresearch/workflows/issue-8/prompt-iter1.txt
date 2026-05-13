@@ -1,0 +1,121 @@
+实现 Issue #8: Create API Key Analytics page with cards and table
+
+项目路径: C:\code\AICodingTool\myproxy\9router
+项目语言: Node.js (Next.js + React 19 + Tailwind CSS 4)
+迭代次数: 1
+
+## Issue 描述
+
+新建 `/dashboard/apikey-analytics` 页面，包含汇总卡片、API Key 用量表格（排序+分页）、时间段选择器、侧边栏菜单入口。消费 `/api/usage/apikey-stats` 接口数据。
+
+## Acceptance Criteria
+
+- 侧边栏 "Usage" 下方新增 "API Keys" 菜单项
+- 点击进入 `/dashboard/apikey-analytics` 页面
+- 页面包含时间段选择器（24h / 7d / 30d / 60d）
+- 页面顶部展示 4 个汇总卡片：Total Requests / Input Tokens / Output Tokens / Est. Cost
+- 表格列：API Key Name、Requests、Input Tokens、Output Tokens、Est. Cost
+- 点击列头可排序（升序/降序切换）
+- 默认按请求数降序排列
+- 表格底部有汇总行
+- 行数超过 10 行时分页，每页 10 行
+- API Key 名称显示 name 字段，无 name 显示 key 前8位 + "..."
+- 费用显示 `~$X.XX` 格式
+- Token 数量用 K/M 简写格式
+- 无数据时显示空状态提示
+- 复用现有 Card / Badge / Pagination 组件
+- 页面样式与 Usage 页面一致（暗色主题、Tailwind CSS）
+
+## 关键上下文
+
+### 侧边栏
+文件：`src/shared/components/Sidebar.js`
+在 Usage 条目下方添加新条目：
+```js
+{ href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
+// 在这里添加:
+{ href: "/dashboard/apikey-analytics", label: "API Key Analytics", icon: "vpn_key" },
+```
+
+### API 端点
+`GET /api/usage/apikey-stats?period=24h`
+返回格式（参考 src/app/api/usage/apikey-stats/route.js）：
+```json
+{
+  "period": "24h",
+  "summary": {
+    "totalRequests": 1234,
+    "totalPromptTokens": 567890,
+    "totalCompletionTokens": 123456,
+    "totalCost": 1.23
+  },
+  "keys": [
+    {
+      "apiKey": "sk-xxx...",
+      "name": "My Key",
+      "requests": 500,
+      "promptTokens": 200000,
+      "completionTokens": 50000,
+      "cost": 0.5,
+      "byProvider": {...},
+      "byModel": {...}
+    }
+  ]
+}
+```
+
+### 现有 Usage 页面参考
+路径：`src/app/(dashboard)/dashboard/usage/`
+- `page.js` — 主页面
+- `components/OverviewCards.js` — 汇总卡片
+- `components/UsageTable.js` — 数据表格
+- `components/UsageChart.js` — 图表
+请参考这些组件的样式和结构，保持一致性。
+
+### 分页组件
+查看 `src/shared/components/` 目录下是否有 Pagination 组件。如果没有，在页面内自行实现简单的分页。
+
+### 时间段选择器
+查看现有 Usage 页面用的 SegmentedControl 组件的位置，直接复用。
+
+### 格式化工具
+Token 数量用 K/M 简写，费用用 `$X.XX`。查找项目已有的 formatNumber / formatCost 等工具函数，复用之。
+
+### 项目约定
+- 使用函数式组件和 React Hooks
+- 使用 Tailwind CSS 4（类名直接写在 JSX 中）
+- 暗色主题 — 所有颜色用 dark: 前缀或项目已有的暗色 class
+- 不要引入新的 npm 包
+- 文件用 .js 后缀（不是 .jsx/.tsx）
+
+## 实现步骤
+
+1. 阅读现有 Usage 页面的 `page.js` 和 `OverviewCards.js`，理解样式模式
+2. 阅读侧边栏 `Sidebar.js`，找到添加菜单的位置
+3. 创建新目录 `src/app/(dashboard)/dashboard/apikey-analytics/`
+4. 创建 `page.js` — 主页面，包含：
+   - 状态管理（useState）：period、sortConfig、currentPage、data
+   - useEffect 获取 `/api/usage/apikey-stats?period=${period}`
+   - 汇总卡片区域（4 个）
+   - 表格区域（排序、分页、汇总行）
+   - 空状态处理
+5. 修改 `Sidebar.js` 添加菜单项
+6. 确保 build 通过
+
+请直接开始实现，完成后报告修改的文件列表。
+
+---
+
+## Program Rules
+
+- 遵循项目现有代码风格
+- 不要修改 package.json
+- 不要修改 i18n 文件（翻译已存在）
+- 精准修改——只添加必要代码
+- 运行 `NODE_ENV=production npx next build --webpack` 验证通过
+
+---
+
+## Agent Persona
+
+你是一个资深前端工程师，精通 React 19 + Next.js + Tailwind CSS。

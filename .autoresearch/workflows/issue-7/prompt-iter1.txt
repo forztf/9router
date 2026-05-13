@@ -1,0 +1,92 @@
+实现 Issue #7: Add i18n resources for apikeyAnalytics
+
+项目路径: C:\code\AICodingTool\myproxy\9router
+项目语言: Node.js (Next.js)
+Issue 标题: Add i18n resources for apikeyAnalytics
+Issue 内容:
+
+## Description
+在 i18n 资源文件中新增 apikeyAnalytics 命名空间的所有 key（中英文），覆盖 API Key 分析页面的所有 UI 文案。
+
+## i18n Keys (minimum)
+- apikeyAnalytics.title - 页面标题
+- apikeyAnalytics.totalRequests - Total Requests
+- apikeyAnalytics.totalInputTokens - Total Input Tokens
+- apikeyAnalytics.totalOutputTokens - Total Output Tokens
+- apikeyAnalytics.estCost - Est. Cost
+- apikeyAnalytics.keyName - API Key Name
+- apikeyAnalytics.requests - Requests
+- apikeyAnalytics.inputTokens - Input Tokens
+- apikeyAnalytics.outputTokens - Output Tokens
+- apikeyAnalytics.cost - Est. Cost
+- apikeyAnalytics.emptyState - No API key usage data yet
+- apikeyAnalytics.exportCsv - Export CSV
+- apikeyAnalytics.byProvider - By Provider
+- apikeyAnalytics.byModel - By Model
+- apikeyAnalytics.noName - (fallback: key 前8位 + "...")
+
+## 重要：项目 i18n 机制说明
+
+本项目的 i18n 系统（src/i18n/runtime.js）是运行时 DOM 文本替换：
+- 英文是默认语言，硬编码在组件中（不翻译，直接返回原文）
+- 其他语言通过 `public/i18n/literals/{locale}.json` 翻译，格式是简单的字符串映射：
+  `{"英文原文": "翻译文本"}`
+- 没有 key-value 命名空间，不支持 apikeyAnalytics.xxx 的写法
+
+因此，要适配 Issue #7 的 AC，实际操作是：
+1. 在组件中硬编码英文文本（默认就是英文）
+2. 在所有非英文语言的 literals JSON 文件中添加对应的翻译映射
+
+请按以下步骤执行：
+
+### Step 1: 分析现有 i18n 结构
+- 查看 `public/i18n/literals/` 下的所有语言文件
+- 重点是 zh-CN.json（简体中文）的结构
+- 理解翻译映射的格式
+
+### Step 2: 在所有语言 JSON 文件中添加 apikeyAnalytics 相关翻译
+需要添加的英文原文及其对应的翻译（至少覆盖 zh-CN, zh-TW, ja, ko, de, fr, es, pt-BR, ru, ar 等主要语言）：
+
+英文原文列表（这些是组件中会使用的硬编码文本）：
+- "API Key Analytics" → 各语言翻译
+- "Total Requests" → 各语言翻译
+- "Total Input Tokens" → 各语言翻译
+- "Total Output Tokens" → 各语言翻译
+- "Est. Cost" → 各语言翻译
+- "API Key Name" → 各语言翻译
+- "Requests" → 各语言翻译
+- "Input Tokens" → 各语言翻译
+- "Output Tokens" → 各语言翻译
+- "No API key usage data yet" → 各语言翻译
+- "Export CSV" → 各语言翻译
+- "By Provider" → 各语言翻译
+- "By Model" → 各语言翻译
+
+注意：
+- JSON 文件是按键排序的（字母序），新增条目应插入到正确的字母位置
+- 英文原文作为 key（左边），翻译作为 value（右边）
+- "Requests" 已可能存在于其他上下文（如 "HTTP Requests"），如果已有完全相同的 key 不要重复添加
+- 确保翻译质量，特别是技术术语的一致性
+
+### Step 3: 验证 JSON 格式正确
+- 每个修改过的 JSON 文件必须能通过 JSON.parse 校验
+- 检查没有尾逗号、转义字符问题
+
+请直接开始实现。完成后列出修改的文件和新增的翻译条目数。
+
+---
+
+## Program Rules
+
+- 遵循项目现有代码风格
+- 不要修改 package.json 或其他依赖管理文件
+- 不要修改 src/i18n/runtime.js 的逻辑（i18n 机制本身不需要改）
+- 精准修改——只在 JSON 文件中添加翻译条目，不改其他内容
+- 保持 JSON 文件的格式一致（缩进、排序）
+
+---
+
+## Agent Persona
+
+你是一个资深前端工程师。专注于 i18n 国际化最佳实践。
+确保翻译准确、一致、符合各语言的表达习惯。

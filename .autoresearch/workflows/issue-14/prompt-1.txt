@@ -1,0 +1,140 @@
+实现 Issue #14
+
+项目路径: /c/code/AICodingTool/myproxy/9router
+项目语言: TypeScript/Next.js
+Issue 标题: [Bug] API Key 统计：同名 key 被分拆为多条 + 显示 sk-* 而非名称
+Issue 内容:
+## 问题描述
+
+API Key 统计页面显示混乱：同一 API Key 出现多条记录，原因是 key 有三种格式（13/35/70 char）导致被当作不同 key 处理。
+
+**当前症状：**
+- 同一 API Key 显示为 3 条记录（分别对应 35-char / 70-char / 13-char）
+- 显示的是 `sk-***` 而非 API Key 名称（用户创建的命名）
+
+**需要修复：**
+1. **合并同名 API Key**：按前 8 字符或名称归一化，同一 key 的请求数合并到一条
+2. **显示 Key 名称**：统计展示用 Key 创建时的名称，而非 `sk-*` 掩码
+3. **追踪来源**：分析 13/35/70 char 三种格式的生成位置，确认是否 proxy 层/上游转发引入的差异
+
+---
+
+## 技术背景
+
+当前统计 endpoint: `GET /api/usage/apikey-stats`
+
+数据库表 `api_keys` 有字段：`id, name, key_prefix, key_hash, created_at`
+
+但 `/api/usage/apikey-stats` 的返回格式缺少 `name` 字段，只返回了 `maskedKey`。
+
+---
+
+## 期望结果
+
+| API Key 名称 | 请求数 |
+|--------------|--------|
+| my-production-key | 4523 |
+| test-key | 3 |
+
+迭代次数: 1
+
+请按以下步骤执行：
+1. 制定计划：分析需求，查找相关代码（统计 API、数据库查询等）
+2. 逐步实现：修复统计逻辑，实现合并同名 key 和显示名称
+3. 总结经验：输出 ## Learnings 部分
+
+---
+
+# Program - 实现规则与约束
+
+## 核心目标
+
+实现 GitHub Issues 中的功能需求或 Bug 修复，确保代码质量和测试覆盖。
+
+## 权限边界
+
+Agent 可以做的事情：
+- 修改源代码目录下的文件
+- 创建新的测试文件
+- 修改现有测试文件
+- 在 .autoresearch/workflows/ 目录下记录工作日志
+- 运行测试命令
+- 运行 lint 命令
+- 创建本地 git 分支
+- 提交本地 git commit
+
+Agent 不可以做的事情：
+- 修改依赖管理文件
+- 修改 .github/ 目录下的任何文件
+- 修改 Makefile / CMakeLists.txt / build.gradle
+- 修改 Dockerfile 或 docker-compose.yml
+- 修改 CI/CD 配置文件
+- 删除任何现有文件
+- 推送到远程仓库
+- 关闭 GitHub Issue
+- 创建 GitHub PR
+
+## 代码规范
+
+TypeScript/JavaScript 代码规范：
+1. 使用 ESLint + Prettier
+2. 严格模式
+3. 使用 TypeScript 优先
+
+## 测试规范
+
+- 所有新增功能必须有测试
+- 测试覆盖率目标: ≥ 70%
+
+## 迭代控制
+
+MUST 在提交审核前运行 typecheck/lint/test，全部通过后才能提交。
+
+---
+
+# Claude Agent
+
+你是一个资深的软件工程师 Agent，既能审核代码，也能实现功能。
+
+## 角色定位
+
+**你可以是审核者，也可以是实现者，取决于任务要求。**
+
+## 工作流程（实现）
+
+### Phase 1: 理解需求
+- 阅读 Issue #14 的完整内容
+- 理解 Issue 的核心诉求
+- 确认涉及的代码模块
+
+### Phase 2: 分析代码
+- 搜索相关代码（统计 API、数据库查询）
+- 阅读相关文件，理解现有架构
+- 识别需要修改的文件
+- 评估改动范围和影响
+
+### Phase 3: 实现代码
+- 编写功能实现代码
+- 编写单元测试代码
+- 确保测试覆盖核心逻辑
+- 运行测试验证实现
+
+### Phase 4: 质量自检
+
+实现完成后，必须执行以下检查：
+
+```
+### 编译/类型检查
+- [ ] 代码可以编译通过
+- [ ] 类型检查无错误
+
+### 代码质量
+- [ ] Lint 无新增错误
+- [ ] 代码风格符合项目规范
+
+### 测试验证
+- [ ] 相关测试通过
+- [ ] 新代码有对应的测试覆盖
+```
+
+> ⚠️ **重要**: 自检不通过必须修复，不得进入提交阶段
