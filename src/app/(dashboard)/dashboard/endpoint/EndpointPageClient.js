@@ -734,6 +734,12 @@ export default function APIPageClient({ machineId }) {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Welcome */}
+      <div className="flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-primary/10 border border-primary/20">
+        <span className="material-symbols-outlined text-primary text-[24px]">waving_hand</span>
+        <p className="text-sm font-medium">Welcome to 9Router</p>
+      </div>
+
       {/* Endpoint Card */}
       <Card>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
