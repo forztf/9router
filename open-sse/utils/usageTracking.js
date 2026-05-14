@@ -342,6 +342,13 @@ export function logUsage(provider, usage, model = null, connectionId = null, api
     cache_creation_input_tokens: cacheCreation || 0,
     reasoning_tokens: reasoning || 0
   };
-  saveRequestUsage({ model, provider, connectionId, tokens, apiKey: apiKey || undefined }).catch(() => { });
+  // 拦截疑似 provider credential（正常 9router key 最长约 35 字符，provider key 通常 50+）
+  let safeApiKey = apiKey;
+  if (safeApiKey && safeApiKey.length > 50) {
+    console.warn(`[SECURITY] Blocking provider credential leak in usage log (length=${safeApiKey.length})`);
+    safeApiKey = 'credential-leak-redacted';
+  }
+
+  saveRequestUsage({ model, provider, connectionId, tokens, apiKey: safeApiKey || undefined }).catch(() => { });
   appendRequestLog({ model, provider, connectionId, tokens, status: "200 OK" }).catch(() => { });
 }

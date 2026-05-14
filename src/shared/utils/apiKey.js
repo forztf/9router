@@ -96,3 +96,22 @@ export function isNewFormatKey(apiKey) {
   return parsed?.isNewFormat === true;
 }
 
+/**
+ * Normalize API key for storage — reduces collision risk and prevents credential leaks
+ * - null/undefined/'local-no-key': return as-is
+ * - New format (sk-{machineId}-{keyId}-{crc8}): first 8 chars
+ * - Old format (sk-{random8}): full key (short enough, no collision risk)
+ * - Non-system keys (not parsed by parseApiKey, not sk- prefix): first 8 chars
+ * @param {string} apiKey
+ * @returns {string}
+ */
+export function normalizeApiKeyForStorage(apiKey) {
+  if (!apiKey || apiKey === "local-no-key") return apiKey;
+  const parsed = parseApiKey(apiKey);
+  if (parsed) {
+    return parsed.isNewFormat ? apiKey.slice(0, 8) : apiKey;
+  }
+  // Non-system key
+  return apiKey.startsWith("sk-") ? apiKey : apiKey.slice(0, 8);
+}
+

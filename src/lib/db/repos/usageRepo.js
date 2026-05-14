@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { getMeta, setMeta } from "../helpers/metaStore.js";
+import { normalizeApiKeyForStorage } from "../../../shared/utils/apiKey.js";
 
 const PENDING_TIMEOUT_MS = 60 * 1000;
 const RING_CAP = 50;
@@ -74,7 +75,8 @@ function aggregateEntryToDay(day, entry) {
     addToCounter(day.byAccount, entry.connectionId, { ...vals, meta: { rawModel: entry.model, provider: entry.provider } });
   }
 
-  const apiKeyVal = entry.apiKey && typeof entry.apiKey === "string" ? entry.apiKey : "local-no-key";
+  const rawApiKey = entry.apiKey && typeof entry.apiKey === "string" ? entry.apiKey : "local-no-key";
+  const apiKeyVal = normalizeApiKeyForStorage(rawApiKey);
   const akModelKey = `${apiKeyVal}|${entry.model}|${entry.provider || "unknown"}`;
   addToCounter(day.byApiKey, akModelKey, { ...vals, meta: { rawModel: entry.model, provider: entry.provider, apiKey: entry.apiKey || null } }, true);
 
@@ -724,12 +726,6 @@ export async function getApiKeyStats(period = "7d") {
   const acc = {};
   const totals = { totalRequests: 0, totalPromptTokens: 0, totalCompletionTokens: 0, totalCost: 0 };
 
-  // Normalize apiKey to first 8 chars for stable aggregation across different key lengths/formats
-  function normalizeKey(apiKey) {
-    if (!apiKey || apiKey === "local-no-key") return apiKey;
-    return apiKey.slice(0, 8);
-  }
-
   function ensureAcc(normalizedKey, originalKey) {
     if (!acc[normalizedKey]) {
       // Look up by prefix first, then by full key for legacy keys
@@ -757,7 +753,7 @@ if (period === "24h") {
       const apiKeyVal = (r.apiKey && typeof r.apiKey === "string") ? r.apiKey : "local-no-key";
       const provider = r.provider || "unknown";
       const model = r.model || "unknown";
-      const entry = ensureAcc(normalizeKey(apiKeyVal), apiKeyVal);
+      const entry = ensureAcc(normalizeApiKeyForStorage(apiKeyVal), apiKeyVal);
       const vals = { requests: 1, promptTokens: r.promptTokens || 0, completionTokens: r.completionTokens || 0, cost: r.cost || 0 };
 
       entry.requests += vals.requests;
@@ -793,7 +789,7 @@ if (period === "24h") {
         const apiKeyVal = ak.apiKey || "local-no-key";
         const provider = ak.provider || "unknown";
         const model = ak.rawModel || akKey.split("|")[1] || "unknown";
-        const entry = ensureAcc(normalizeKey(apiKeyVal), apiKeyVal);
+        const entry = ensureAcc(normalizeApiKeyForStorage(apiKeyVal), apiKeyVal);
         const vals = { requests: ak.requests || 0, promptTokens: ak.promptTokens || 0, completionTokens: ak.completionTokens || 0, cost: ak.cost || 0 };
 
         entry.requests += vals.requests;
